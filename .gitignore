@@ -1,0 +1,11 @@
+# Miscelleneous
+.env
+
+# binaries
+bin
+
+# JetBrains
+.idea
+
+# MacOS
+.DS_Store
