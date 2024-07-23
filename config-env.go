@@ -2,6 +2,7 @@ package config_env
 
 import (
 	"fmt"
+	"github.com/joho/godotenv"
 	"os"
 	"reflect"
 )
@@ -14,6 +15,8 @@ import (
 // omitempty - ignores the field if the environment variable is not present
 
 func ParseEnv[T any]() T {
+	_ = godotenv.Load()
+
 	// Checking if the type is a struct
 	if reflect.TypeFor[T]().Kind() != reflect.Struct {
 		panic("type is not a struct")
@@ -50,3 +53,5 @@ func ValidateEnv[T any]() error {
 
 	return nil
 }
+
+// func validateType[T any]() error {}
