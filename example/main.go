@@ -2,13 +2,21 @@ package main
 
 import (
 	"fmt"
-	"github.com/XxThunderBlastxX/config-env"
+	configenv "github.com/XxThunderBlastxX/config-env"
 )
 
-type Server struct {
-	Name string `env:"NAME"`
+// Example usage
+type Config struct {
+	Port int `env:"APP_PORT"`
 }
 
 func main() {
-	fmt.Println(config_env.ParseEnv[Server]())
+	config, err := configenv.ParseEnv[Config]()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Loaded config: %+v\n", config)
+
 }
