@@ -5,12 +5,12 @@ import (
 	configenv "github.com/XxThunderBlastxX/config-env"
 )
 
-// Example usage
 type Config struct {
-	Port int `env:"APP_PORT"`
+	Port int `env:"PORT"`
 }
 
 func main() {
+	//var config Config
 	config, err := configenv.ParseEnv[Config]()
 	if err != nil {
 		fmt.Printf("Error loading config: %v\n", err)
@@ -18,5 +18,4 @@ func main() {
 	}
 
 	fmt.Printf("Loaded config: %+v\n", config)
-
 }

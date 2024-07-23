@@ -13,7 +13,6 @@ import (
 // Tags : env
 // Example : `env:"NAME"`
 // Validations :-
-// required - checks if the environment variable is present and compulsory
 // default - sets the default value if the environment variable if not present
 // omitempty - ignores the field if the environment variable is not present
 
@@ -49,24 +48,8 @@ func ParseEnv[T any]() (T, error) {
 
 		envValue := os.Getenv(envFieldName)
 
-		switch fieldType.Kind() {
-		case reflect.String:
-			instance.Field(i).SetString(envValue)
-		case reflect.Int:
-			intVal, err := strconv.Atoi(envValue)
-			if err != nil {
-				return zero, err
-			}
-			instance.Field(i).SetInt(int64(intVal))
-
-		case reflect.Bool:
-			boolVal, err := strconv.ParseBool(envValue)
-			if err != nil {
-				return zero, err
-			}
-			instance.Field(i).SetBool(boolVal)
-		default:
-			return zero, fmt.Errorf("unsupported type %s", fieldType.Kind())
+		if err := setFieldValue(&instance, i, fieldType, envValue); err != nil {
+			return zero, err
 		}
 	}
 
@@ -91,4 +74,26 @@ func checkEnvFound(env string) bool {
 	}
 
 	return true
+}
+
+func setFieldValue(instance *reflect.Value, i int, fieldType reflect.Type, envValue string) error {
+	switch fieldType.Kind() {
+	case reflect.String:
+		instance.Field(i).SetString(envValue)
+	case reflect.Int:
+		intVal, err := strconv.Atoi(envValue)
+		if err != nil {
+			return err
+		}
+		instance.Field(i).SetInt(int64(intVal))
+	case reflect.Bool:
+		boolVal, err := strconv.ParseBool(envValue)
+		if err != nil {
+			return err
+		}
+		instance.Field(i).SetBool(boolVal)
+	default:
+		return fmt.Errorf("unsupported type %s", fieldType.Kind())
+	}
+	return nil
 }
