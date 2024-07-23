@@ -1,10 +1,13 @@
-package config_env
+package configenv
 
 import (
 	"fmt"
 	"github.com/joho/godotenv"
 	"os"
 	"reflect"
+	"slices"
+	"strconv"
+	"strings"
 )
 
 // Tags : env
@@ -14,44 +17,78 @@ import (
 // default - sets the default value if the environment variable if not present
 // omitempty - ignores the field if the environment variable is not present
 
-func ParseEnv[T any]() T {
-	_ = godotenv.Load()
-
-	// Checking if the type is a struct
-	if reflect.TypeFor[T]().Kind() != reflect.Struct {
-		panic("type is not a struct")
+func ParseEnv[T any]() (T, error) {
+	if err := godotenv.Load(); err != nil {
+		return reflect.Zero(reflect.TypeFor[T]()).Interface().(T), err
 	}
 
+	// Creating a zero instance of the struct
+	var zero T
 	// Creating a new instance of the struct
 	instance := reflect.New(reflect.TypeFor[T]()).Elem()
+
+	// Checking if the type is a struct
+	if err := checkForTypeStruct[T](); err != nil {
+		return zero, err
+	}
 
 	// Looping through the fields of the struct
 	for i := 0; i < reflect.TypeFor[T]().NumField(); i++ {
 		tag := reflect.TypeFor[T]().Field(i).Tag.Get("env")
+		fieldType := reflect.TypeFor[T]().Field(i).Type
 
-		// Validating the environment variable
-		_ = ValidateEnv[T]()
+		params := getAllParameters(tag)
+		envFieldName := params[0]
 
-		envValue := os.Getenv(tag)
+		// Checking for "required" param
+		if slices.Contains(params, "required") {
+			if ok := checkEnvFound(envFieldName); !ok {
+				return zero, fmt.Errorf("environment variable %s is not set", envFieldName)
+			}
+		}
 
-		// Setting the value of the field
-		instance.Field(i).SetString(envValue)
+		envValue := os.Getenv(envFieldName)
+
+		switch fieldType.Kind() {
+		case reflect.String:
+			instance.Field(i).SetString(envValue)
+		case reflect.Int:
+			intVal, err := strconv.Atoi(envValue)
+			if err != nil {
+				return zero, err
+			}
+			instance.Field(i).SetInt(int64(intVal))
+
+		case reflect.Bool:
+			boolVal, err := strconv.ParseBool(envValue)
+			if err != nil {
+				return zero, err
+			}
+			instance.Field(i).SetBool(boolVal)
+		default:
+			return zero, fmt.Errorf("unsupported type %s", fieldType.Kind())
+		}
 	}
 
-	return instance.Interface().(T)
+	return instance.Interface().(T), nil
 }
 
-func ValidateEnv[T any]() error {
-	for i := 0; i < reflect.TypeFor[T]().NumField(); i++ {
-		tag := reflect.TypeFor[T]().Field(i).Tag.Get("env")
-
-		// Checking if the environment variable exists
-		if _, ok := os.LookupEnv(tag); !ok {
-			return fmt.Errorf("environment variable %s not found", tag)
-		}
+func checkForTypeStruct[T any]() error {
+	if reflect.TypeFor[T]().Kind() != reflect.Struct {
+		return fmt.Errorf("type is not a struct")
 	}
 
 	return nil
 }
 
-// func validateType[T any]() error {}
+func getAllParameters(str string) []string {
+	return strings.Split(str, ",")
+}
+
+func checkEnvFound(env string) bool {
+	if _, ok := os.LookupEnv(env); !ok {
+		return false
+	}
+
+	return true
+}
