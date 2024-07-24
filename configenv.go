@@ -15,6 +15,7 @@ import (
 // Validations :-
 // default - sets the default value if the environment variable if not present
 
+// ParseEnv parses the environment variables and return after setting the values to the struct
 func ParseEnv[T any]() (T, error) {
 	if err := godotenv.Load(); err != nil {
 		return reflect.Zero(reflect.TypeFor[T]()).Interface().(T), err

@@ -1,4 +1,4 @@
-module github.com/XxThunderBlastxX/config-env
+module github.com/XxThunderBlastxX/goconfigenv
 
 go 1.22.5
 
