@@ -14,7 +14,6 @@ import (
 // Example : `env:"NAME"`
 // Validations :-
 // default - sets the default value if the environment variable if not present
-// omitempty - ignores the field if the environment variable is not present
 
 func ParseEnv[T any]() (T, error) {
 	if err := godotenv.Load(); err != nil {
@@ -22,7 +21,8 @@ func ParseEnv[T any]() (T, error) {
 	}
 
 	// Creating a zero instance of the struct
-	var zero T
+	zero := reflect.Zero(reflect.TypeFor[T]()).Interface().(T)
+
 	// Creating a new instance of the struct
 	instance := reflect.New(reflect.TypeFor[T]()).Elem()
 
@@ -39,15 +39,25 @@ func ParseEnv[T any]() (T, error) {
 		params := getAllParameters(tag)
 		envFieldName := params[0]
 
-		// Checking for "required" param
-		if slices.Contains(params, "required") {
-			if ok := checkEnvFound(envFieldName); !ok {
-				return zero, fmt.Errorf("environment variable %s is not set", envFieldName)
-			}
-		}
-
 		envValue := os.Getenv(envFieldName)
 
+		// Checking for default value
+		defaultIdx := slices.IndexFunc(params, func(s string) bool {
+			return strings.Contains(s, "default=")
+		})
+		if envValue == "" && defaultIdx != -1 && !checkEnvFound(envFieldName) {
+			defaultVal := strings.Trim(strings.SplitN(params[defaultIdx], "default=", 2)[1], " ")
+			if err := setFieldValue(&instance, i, fieldType, defaultVal); err != nil {
+				return zero, err
+			}
+			continue
+		}
+
+		if envValue == "" || defaultIdx == -1 || checkEnvFound(envFieldName) {
+			return zero, fmt.Errorf("environment variable %s not found", envFieldName)
+		}
+
+		// Set all the field values
 		if err := setFieldValue(&instance, i, fieldType, envValue); err != nil {
 			return zero, err
 		}
