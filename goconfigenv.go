@@ -1,4 +1,4 @@
-package configenv
+package goconfigenv
 
 import (
 	"fmt"
@@ -32,10 +32,20 @@ func ParseEnv[T any]() (T, error) {
 		return zero, err
 	}
 
-	// Looping through the fields of the struct
-	for i := 0; i < reflect.TypeFor[T]().NumField(); i++ {
-		tag := reflect.TypeFor[T]().Field(i).Tag.Get("env")
-		fieldType := reflect.TypeFor[T]().Field(i).Type
+	// Setting the struct fields
+	err := setStructFields(&instance)
+	if err != nil {
+		return zero, err
+	}
+
+	return instance.Interface().(T), nil
+}
+
+func setStructFields(instance *reflect.Value) error {
+	typ := instance.Type()
+	for i := 0; i < typ.NumField(); i++ {
+		tag := typ.Field(i).Tag.Get("env")
+		fieldType := typ.Field(i).Type
 
 		params := getAllParameters(tag)
 		envFieldName := params[0]
@@ -46,25 +56,22 @@ func ParseEnv[T any]() (T, error) {
 		defaultIdx := slices.IndexFunc(params, func(s string) bool {
 			return strings.Contains(s, "default=")
 		})
-		if envValue == "" && defaultIdx != -1 && !checkEnvFound(envFieldName) {
-			defaultVal := strings.Trim(strings.SplitN(params[defaultIdx], "default=", 2)[1], " ")
-			if err := setFieldValue(&instance, i, fieldType, defaultVal); err != nil {
-				return zero, err
+		if envValue == "" || !checkEnvFound(envFieldName) {
+			if defaultIdx != -1 {
+				defaultVal := strings.Trim(strings.SplitN(params[defaultIdx], "default=", 2)[1], " ")
+				if err := setFieldValue(instance, i, fieldType, defaultVal); err != nil {
+					return err
+				}
+				continue
 			}
-			continue
-		}
-
-		if envValue == "" || defaultIdx == -1 || checkEnvFound(envFieldName) {
-			return zero, fmt.Errorf("environment variable %s not found", envFieldName)
 		}
 
 		// Set all the field values
-		if err := setFieldValue(&instance, i, fieldType, envValue); err != nil {
-			return zero, err
+		if err := setFieldValue(instance, i, fieldType, envValue); err != nil {
+			return err
 		}
 	}
-
-	return instance.Interface().(T), nil
+	return nil
 }
 
 func checkForTypeStruct[T any]() error {
@@ -103,6 +110,12 @@ func setFieldValue(instance *reflect.Value, i int, fieldType reflect.Type, envVa
 			return err
 		}
 		instance.Field(i).SetBool(boolVal)
+	case reflect.Struct:
+		nestedVal := instance.Field(i)
+		err := setStructFields(&nestedVal)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported type %s", fieldType.Kind())
 	}
