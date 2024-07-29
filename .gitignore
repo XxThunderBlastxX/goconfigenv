@@ -1,6 +1,5 @@
 # Miscelleneous
-.env
-example
+example/.env
 
 # binaries
 bin
