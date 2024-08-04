@@ -17,8 +17,12 @@ import (
 
 // ParseEnv parses the environment variables and return after setting the values to the struct
 func ParseEnv[T any]() (T, error) {
-	if err := godotenv.Load(); err != nil {
-		return reflect.Zero(reflect.TypeFor[T]()).Interface().(T), err
+	// Loading the .env file if exists
+	_, err := os.Stat(".env")
+	if err == nil && os.IsExist(err) {
+		if err := godotenv.Load(); err != nil {
+			return reflect.Zero(reflect.TypeFor[T]()).Interface().(T), err
+		}
 	}
 
 	// Creating a zero instance of the struct
@@ -33,7 +37,7 @@ func ParseEnv[T any]() (T, error) {
 	}
 
 	// Setting the struct fields
-	err := setStructFields(&instance)
+	err = setStructFields(&instance)
 	if err != nil {
 		return zero, err
 	}

@@ -6,8 +6,8 @@ import (
 )
 
 type AppConfig struct {
-	Host        string `env:"HOST"`
-	Port        int    `env:"PORT"`
+	Host        string `env:"HOST,default=localhost"`
+	Port        int    `env:"PORT,default=8080"`
 	InnerStruct InnerConfig
 }
 
