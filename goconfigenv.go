@@ -18,9 +18,8 @@ import (
 // ParseEnv parses the environment variables and return after setting the values to the struct
 func ParseEnv[T any]() (T, error) {
 	// Loading the .env file if exists
-	_, err := os.Stat(".env")
-	if err == nil && os.IsExist(err) {
-		if err := godotenv.Load(); err != nil {
+	if envFileExist := checkFileExists(".env"); envFileExist {
+		if err := godotenv.Overload(".env"); err != nil {
 			return reflect.Zero(reflect.TypeFor[T]()).Interface().(T), err
 		}
 	}
@@ -37,7 +36,7 @@ func ParseEnv[T any]() (T, error) {
 	}
 
 	// Setting the struct fields
-	err = setStructFields(&instance)
+	err := setStructFields(&instance)
 	if err != nil {
 		return zero, err
 	}
@@ -124,4 +123,13 @@ func setFieldValue(instance *reflect.Value, i int, fieldType reflect.Type, envVa
 		return fmt.Errorf("unsupported type %s", fieldType.Kind())
 	}
 	return nil
+}
+
+// checkFileExists checks if a file exists and is not a directory before we try using it to prevent further errors.
+func checkFileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
